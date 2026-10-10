@@ -85,7 +85,7 @@ Then, in Claude Code:
 
 | Step | You type | Result |
 | --- | --- | --- |
-| Write a design | (you, in `docs/architecture/001-name.md`) | |
+| Talk the design through, then write it up | `/rb-design <name>` | `docs/architecture/001-name.md` (draft) |
 | Check it is complete | `/rb-intake <design>` | a gap report |
 | Have it challenged | `/rb-research <design>` | `docs/research/001-assessment.md` |
 | **Gate 1** | you set `status: approved` in the design | |
@@ -106,7 +106,7 @@ Full reference: [docs/PIPELINE.md](docs/PIPELINE.md).
 | Part | What it is |
 | --- | --- |
 | 4 agents | researcher, planner, implementer, reviewer; each can write only to its own folder |
-| 6 commands | `/rb-intake`, `/rb-research`, `/rb-draft-plan`, `/rb-implement`, `/rb-review-diff`, `/rb-lesson` |
+| 7 commands | `/rb-design`, `/rb-intake`, `/rb-research`, `/rb-draft-plan`, `/rb-implement`, `/rb-review-diff`, `/rb-lesson` |
 | 8 skills | shared templates and checklists: intake sections, assessment, plan format, review rubric, infrastructure and data review, decision records, knowledge lookup and proposal |
 | 5 hooks | approval gate, per-agent path guard, deploy guard, secret scan, denylist scan |
 | 3 scripts | `bootstrap.sh` (install), `doctor.sh` (check a machine), `validate.sh` (lint and test this repository) |

@@ -25,7 +25,7 @@ contract between stages; each stage reads and writes fixed paths.
 
 | Stage | Entry point | Reads | Writes |
 | --- | --- | --- | --- |
-| Design | human, outside Claude Code | | `docs/architecture/NNN-name.md` |
+| Design | human, with `/rb-design` to write it up | the conversation | `docs/architecture/NNN-name.md` (draft) |
 | Intake | `/rb-intake` | architecture doc | nothing, reports gaps |
 | Research | `/rb-research` | architecture doc, repo | `docs/research/NNN-assessment.md` |
 | Plan | `/rb-draft-plan` | approved architecture | `docs/plans/NNN-name.md` (draft) |

@@ -7,7 +7,7 @@ fixed paths and writes one output, so any stage can be re-run or inspected on it
 
 | # | Stage | Entry point | Runs as | Reads | Writes |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Design | you, in chat | | | `docs/architecture/NNN-name.md` (`status: draft`) |
+| 1 | Design | you, in conversation; `/rb-design <name>` writes it up | main session | the conversation | `docs/architecture/NNN-name.md` (`status: draft`) |
 | 2 | Intake | `/rb-intake <doc>` | main session | the doc | nothing; prints a gap report |
 | 3 | Research | `/rb-research <doc>` | `architecture-researcher` | the doc, the repo, the web | `docs/research/NNN-assessment.md`; doc becomes `challenged` |
 | | **Gate 1** | you | | the assessment | you revise the doc and set `status: approved` |
