@@ -1,0 +1,6 @@
+.DS_Store
+*.swp
+# Machine-local files never belong in this public repo.
+settings.local.json
+denylist.txt
+!tests/fixtures/denylist.txt

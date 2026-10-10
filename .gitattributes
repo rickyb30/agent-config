@@ -1,0 +1,6 @@
+* text=auto eol=lf
+*.sh text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.jq text eol=lf
+.githooks/* text eol=lf

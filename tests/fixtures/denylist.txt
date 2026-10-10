@@ -1,0 +1,4 @@
+# Fictional terms used only by tests/run.sh.
+Initech
+intranet.initech.example
+/home/pgibbons

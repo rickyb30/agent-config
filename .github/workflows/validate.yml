@@ -1,0 +1,49 @@
+name: validate
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            bash: bash # bash 5
+          - os: macos-latest
+            bash: /bin/bash # bash 3.2, what macOS ships
+    runs-on: ${{ matrix.os }}
+    env:
+      GITLEAKS_VERSION: "8.21.2"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq jq shellcheck
+          curl -sSfL -o /tmp/gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          sudo tar -xzf /tmp/gitleaks.tar.gz -C /usr/local/bin gitleaks
+
+      - name: Install tools (macOS)
+        if: runner.os == 'macOS'
+        run: brew install jq shellcheck gitleaks
+
+      - name: Show versions
+        run: |
+          ${{ matrix.bash }} --version | head -1
+          jq --version
+          shellcheck --version | sed -n 2p
+          gitleaks version
+
+      - name: Validate
+        run: ${{ matrix.bash }} scripts/validate.sh --strict

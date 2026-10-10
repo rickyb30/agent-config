@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Pre-commit for this public repository: secrets and denylisted terms never get in.
+# Enabled by scripts/bootstrap.sh (git config core.hooksPath .githooks).
+set -u
+root=$(git rev-parse --show-toplevel) || exit 1
+"$root/claude/hooks/secret-scan.sh" --pre-commit || exit 1
+"$root/claude/hooks/denylist-scan.sh" --staged || exit 1
