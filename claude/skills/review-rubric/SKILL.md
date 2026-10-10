@@ -36,6 +36,10 @@ Work through every category. Record "checked, no finding" when a category is cle
 10. **Plan conformance**: every acceptance criterion of the milestone is met, and nothing
     was changed that the plan did not ask for or said must not change.
 
+When the diff contains infrastructure code, pipeline or job definitions, SQL, data
+transformations or notebooks, also apply the `infra-data-review` checklist and report
+its categories in the same way.
+
 ## Output: `docs/reviews/NNN-review.md`
 
 ```markdown

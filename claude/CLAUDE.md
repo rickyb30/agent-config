@@ -12,6 +12,9 @@ appears in both places gets deleted from one.
 - Run the project's checks (`scripts/verify.sh` when present) before calling work done,
   and report the real result, including failures.
 - When blocked or when the instructions conflict, stop and ask. Do not improvise around a gate.
+- Never change a live environment yourself: no apply, deploy, destroy, or SQL that writes
+  to a shared warehouse. Validate and plan, then hand the command to the human. A hook
+  blocks these unless the project allows a specific command.
 - Never put secrets, credentials, employer names, internal hostnames or personal paths
   into any file. Reference an environment variable or a secret store instead.
 
@@ -23,11 +26,11 @@ contract between stages; each stage reads and writes fixed paths.
 | Stage | Entry point | Reads | Writes |
 | --- | --- | --- | --- |
 | Design | human, outside Claude Code | | `docs/architecture/NNN-name.md` |
-| Intake | `/intake` | architecture doc | nothing, reports gaps |
-| Research | `/research` | architecture doc, repo | `docs/research/NNN-assessment.md` |
-| Plan | `/draft-plan` | approved architecture | `docs/plans/NNN-name.md` (draft) |
-| Implement | `/implement` | approved plan | source, tests, `docs/plans/NNN-log.md` |
-| Review | `/review-diff` | approved plan, diff | `docs/reviews/NNN-review.md` |
+| Intake | `/rb-intake` | architecture doc | nothing, reports gaps |
+| Research | `/rb-research` | architecture doc, repo | `docs/research/NNN-assessment.md` |
+| Plan | `/rb-draft-plan` | approved architecture | `docs/plans/NNN-name.md` (draft) |
+| Implement | `/rb-implement` | approved plan | source, tests, `docs/plans/NNN-log.md` |
+| Review | `/rb-review-diff` | approved plan, diff | `docs/reviews/NNN-review.md` |
 | Verify | `scripts/verify.sh`, CI | | |
 
 Rules that hold in every stage:

@@ -8,25 +8,25 @@ fixed paths and writes one output, so any stage can be re-run or inspected on it
 | # | Stage | Entry point | Runs as | Reads | Writes |
 | --- | --- | --- | --- | --- | --- |
 | 1 | Design | you, in chat | | | `docs/architecture/NNN-name.md` (`status: draft`) |
-| 2 | Intake | `/intake <doc>` | main session | the doc | nothing; prints a gap report |
-| 3 | Research | `/research <doc>` | `architecture-researcher` | the doc, the repo, the web | `docs/research/NNN-assessment.md`; doc becomes `challenged` |
+| 2 | Intake | `/rb-intake <doc>` | main session | the doc | nothing; prints a gap report |
+| 3 | Research | `/rb-research <doc>` | `architecture-researcher` | the doc, the repo, the web | `docs/research/NNN-assessment.md`; doc becomes `challenged` |
 | | **Gate 1** | you | | the assessment | you revise the doc and set `status: approved` |
-| 4 | Plan | `/draft-plan <doc>` | `engineering-planner` | approved doc, assessment | `docs/plans/NNN-name.md` (`status: draft`), `docs/adr/` |
+| 4 | Plan | `/rb-draft-plan <doc>` | `engineering-planner` | approved doc, assessment | `docs/plans/NNN-name.md` (`status: draft`), `docs/adr/` |
 | | **Gate 2** | you | | the plan | you set `status: approved` |
-| 5 | Implement | `/implement <plan> [M#]` | `implementer` | approved plan | source, tests, `docs/plans/NNN-log.md` |
-| 6 | Review | `/review-diff [base-ref]` | `independent-reviewer` | approved plan, the diff | `docs/reviews/NNN-review.md` |
+| 5 | Implement | `/rb-implement <plan> [M#]` | `implementer` | approved plan | source, tests, `docs/plans/NNN-log.md` |
+| 6 | Review | `/rb-review-diff [base-ref]` | `independent-reviewer` | approved plan, the diff | `docs/reviews/NNN-review.md` |
 | 7 | Verify | `scripts/verify.sh`, CI | no model | | |
 
-`/lesson <text>` writes a knowledge proposal at any point.
+`/rb-lesson <text>` writes a knowledge proposal at any point.
 
-The plan and review commands are named `/draft-plan` and `/review-diff` because
-`/plan` and `/review` are built-in Claude Code commands.
+Every pipeline command carries the `rb-` prefix so none collides with a built-in
+Claude Code command (`/plan` and `/review` are built in).
 
 ## Status values
 
 | Document | Values | Who moves it |
 | --- | --- | --- |
-| Architecture | `draft` → `challenged` → `approved` | `/research` sets `challenged`; only you set `approved` |
+| Architecture | `draft` → `challenged` → `approved` | `/rb-research` sets `challenged`; only you set `approved` |
 | Plan | `draft` → `approved` | only you set `approved` |
 | Knowledge entry | `proposed` → `accepted` → `retired` | agents create `proposed`; you do the rest |
 
@@ -46,7 +46,17 @@ some folders:
 { "source_paths": ["src", "tests", "migrations"] }
 ```
 
-The path guard for the researcher, planner and reviewer applies in every project.
+To let agents run specific environment-changing commands in a project, list them as
+command prefixes:
+
+```json
+{ "allow_deploy": ["terraform apply", "dbt build --target dev"] }
+```
+
+`.claude/pipeline.json` can only be created and edited by you, never by a tool call.
+
+The path guard for the researcher, planner and reviewer, and the deploy guard, apply
+in every project.
 
 ## What the hooks enforce
 
@@ -57,6 +67,7 @@ The path guard for the researcher, planner and reviewer applies in every project
 | `require-approved-plan.sh` | `.claude/pipeline.json` cannot be edited by a tool call. |
 | `guard-paths.sh` | Researcher writes only `docs/research/`; planner only `docs/plans/` and `docs/adr/`; reviewer only `docs/reviews/`. Their shell access is limited to read-only git commands. |
 | `guard-paths.sh` | Any subagent may write `docs/knowledge/inbox/`; none may write elsewhere under `docs/knowledge/`. |
+| `guard-deploy.sh` | In every project, shell commands that change a live environment are blocked: infrastructure apply and destroy, cloud CLI calls that create, change or delete, warehouse SQL that writes, job and bundle deploys, `dbt` runs, `kubectl` and `helm` changes. Read, validate and plan commands pass. |
 | `secret-scan.sh` | Content about to be written, and staged changes at `git commit`, are scanned with gitleaks. |
 
 To edit an approved document, set its status back to `draft` yourself, make or request
@@ -70,6 +81,12 @@ they make every approval a visible act of yours. They are not a sandbox.
 - The source gate covers the file-writing tools. An agent with shell access (the
   implementer, the main session) can still change files through a shell command.
   Review and `scripts/verify.sh` are the backstop.
+- The deploy guard reads the command text only. It cannot see what a script, a
+  Makefile target or a CI trigger does, and a value that happens to equal a blocked
+  verb causes a false block. The control that actually holds is credentials: give
+  agents read-only or plan-only cloud identities and keep apply rights in CI.
+- Work done outside the repository (a notebook edited in a workspace UI, a worksheet
+  in a warehouse console) passes through no hook and no review.
 - The main session is not restricted by the path guard, because you direct it.
 - A plan stays `approved` after its work is finished. Remove `docs/plans/.active` when
   a plan is complete to close the source gate again.
@@ -80,14 +97,14 @@ they make every approval a visible act of yours. They are not a sandbox.
 ## Deviations
 
 The implementer does not decide. When the plan cannot be followed, it appends a
-`DEVIATION` entry to `docs/plans/NNN-log.md` and stops. `/implement` refuses to continue
+`DEVIATION` entry to `docs/plans/NNN-log.md` and stops. `/rb-implement` refuses to continue
 past an unresolved deviation. You record the decision in the log, or revise the plan
 (back to `draft`, then approve again).
 
 ## Knowledge loop
 
 1. After a review or a failed run, the reviewer or implementer writes a proposal to
-   `docs/knowledge/inbox/`. `/lesson` does the same by hand.
+   `docs/knowledge/inbox/`. `/rb-lesson` does the same by hand.
 2. You read it, then delete it or move it into `patterns/`, `lessons/` or
    `references/`, set `status: accepted`, and add one line to `INDEX.md`.
 3. Agents read `INDEX.md` first and open only matching entries.

@@ -30,6 +30,18 @@ date: 2026-01-31
 | NFRs | Targets have numbers: latency, availability, volume, recovery, security | Adjectives ("fast", "secure") |
 | Open questions | Listed, or the section says "none" | Questions buried in other sections |
 
+## Conditional sections
+
+Required only when the design does what the first column says. Otherwise report
+`not applicable`.
+
+| Section | Required when | Present when |
+| --- | --- | --- |
+| Data | The design stores, moves or transforms data | Sources, volumes, freshness, retention and classification are stated |
+| Environments and rollout | The design changes deployed infrastructure, pipelines or schemas | Environments are named, and the doc says how a change is promoted and rolled back |
+| Cost | The design adds compute, storage or a paid service | There is an estimate with its assumptions, and a named owner or limit |
+| Access | The design adds identities, roles, keys or network paths | Who and what gets access to what, and why, is listed |
+
 Section titles may vary ("Non-functional requirements" for NFRs). Match on meaning.
 
 ## Report format

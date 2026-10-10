@@ -32,14 +32,22 @@ proj="${CLAUDE_PROJECT_DIR:-}"
 proj="${proj%/}"
 
 config="$proj/.claude/pipeline.json"
-[ -f "$config" ] || exit 0
 
 rel=$(rel_path "$proj" "$path")
 case $? in
   0) ;;
   1) exit 0 ;; # outside the project: not this gate's business
-  *) hook_deny "Blocked: '$path' contains . or .. segments. Use a normalised path." ;;
+  *)
+    [ -f "$config" ] || exit 0
+    hook_deny "Blocked: '$path' contains . or .. segments. Use a normalised path."
+    ;;
 esac
+
+# Human-only even before it exists: it opts the project in and can allow deploy commands.
+if [ "$rel" = .claude/pipeline.json ]; then
+  hook_deny "Blocked: .claude/pipeline.json configures the approval gates and is edited by a human only."
+fi
+[ -f "$config" ] || exit 0
 
 doc_status() { fm_get status | lower; }
 
@@ -68,9 +76,6 @@ resulting_content() {
 }
 
 case "$rel" in
-  .claude/pipeline.json)
-    hook_deny "Blocked: .claude/pipeline.json configures the approval gates and is edited by a human only."
-    ;;
   docs/architecture/*.md | docs/plans/*.md)
     if [ "$(resulting_content | doc_status)" = approved ]; then
       hook_deny "Blocked: '$rel' would have status: approved after this change. Approval is a human gate, and approved documents are read-only for agents. A human sets the status (or sets it back to draft before asking for edits)."
@@ -101,7 +106,7 @@ fi
 [ "$gated" -eq 1 ] || exit 0
 
 pointer="$proj/docs/plans/.active"
-[ -f "$pointer" ] || hook_deny "Blocked: '$rel' is a source path and no plan is active. Run /implement <plan> on an approved plan first."
+[ -f "$pointer" ] || hook_deny "Blocked: '$rel' is a source path and no plan is active. Run /rb-implement <plan> on an approved plan first."
 
 plan=$(head -n 1 "$pointer" | tr -d '\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
 plan="${plan#./}"

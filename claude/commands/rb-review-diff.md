@@ -22,4 +22,4 @@ Run the review stage with: $ARGUMENTS
 5. Report the verdict and the findings table as written. Do not soften, reorder or
    dispute findings, and do not start fixing them.
 
-Fixes for `changes required` go back through `/implement`.
+Fixes for `changes required` go back through `/rb-implement`.

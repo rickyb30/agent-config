@@ -74,6 +74,7 @@ mkdir -p "$P/.claude" "$P/docs/architecture" "$P/docs/plans" "$P/src"
 G=require-approved-plan.sh
 
 check "project without pipeline.json is not gated" 0 "$(hook $G "$P" "$(write_json "$P/src/app.py" x)")"
+check "an agent cannot create pipeline.json" 2 "$(hook $G "$P" "$(write_json "$P/.claude/pipeline.json" '{"allow_deploy":["terraform apply"]}')")"
 
 echo '{}' >"$P/.claude/pipeline.json"
 check "source write with no active plan is blocked" 2 "$(hook $G "$P" "$(write_json "$P/src/app.py" x)")"
@@ -153,6 +154,92 @@ check "reviewer cannot redirect" 2 "$(hook $G "$P" "$(bash_json $V "git diff > s
 check "reviewer cannot use git diff --output" 2 "$(hook $G "$P" "$(bash_json $V "git diff --output=src/app.py")")"
 check "reviewer cannot run git commit" 2 "$(hook $G "$P" "$(bash_json $V "git commit -am x")")"
 check "implementer bash is unrestricted" 0 "$(hook $G "$P" "$(bash_json implementer "npm test && npm run lint")")"
+
+# ---------------------------------------------------------------- guard-deploy
+echo "guard-deploy.sh"
+G=guard-deploy.sh
+Q="$TMP/plainproj"
+mkdir -p "$Q"
+run() { jq -n --arg c "$1" '{tool_name:"Bash",tool_input:{command:$c}}'; }
+blocked() { check "blocked: $1" 2 "$(hook $G "$Q" "$(run "$1")")"; }
+allowed() { check "allowed: $1" 0 "$(hook $G "$Q" "$(run "$1")")"; }
+
+allowed "terraform plan -out tf.plan"
+allowed "terraform validate"
+allowed "terraform fmt -check"
+allowed "terraform state list"
+blocked "terraform apply -auto-approve"
+blocked "terraform destroy"
+blocked "terraform state rm module.db"
+blocked "terraform -chdir=infra apply"
+blocked "terraform validate && terraform apply"
+blocked "cd infra; TF_VAR_env=dev terraform apply"
+blocked "sudo /usr/local/bin/terraform apply"
+blocked "bash -c 'terraform apply'"
+blocked "terragrunt run-all apply"
+blocked "pulumi up --yes"
+allowed "pulumi preview"
+blocked "cdk deploy"
+allowed "cdk diff"
+
+allowed "az account show"
+allowed "az group list --output table"
+allowed "az storage account show --name examplestore"
+allowed "az login"
+blocked "az group delete --name rg-example --yes"
+blocked "az deployment group create --resource-group rg-example --template-file main.bicep"
+allowed "az deployment group what-if --resource-group rg-example --template-file main.bicep"
+blocked "az storage blob upload --file a.csv --container-name raw"
+
+allowed "aws sts get-caller-identity"
+allowed "aws s3 ls s3://example-bucket"
+allowed "aws ec2 describe-instances --region us-east-1"
+allowed "aws cloudformation list-stacks"
+blocked "aws s3 rm s3://example-bucket/key"
+blocked "aws s3 sync . s3://example-bucket"
+blocked "aws cloudformation delete-stack --stack-name example"
+blocked "aws --profile dev ec2 terminate-instances --instance-ids i-0123"
+blocked "aws lambda update-function-code --function-name example"
+allowed "gcloud compute instances list"
+blocked "gcloud compute instances delete example"
+
+allowed "databricks bundle validate"
+allowed "databricks jobs list"
+allowed "databricks clusters get 0123"
+blocked "databricks bundle deploy -t prod"
+blocked "databricks jobs run-now 42"
+blocked "databricks fs rm dbfs:/tmp/x"
+
+allowed "snow sql -q \"select count(*) from orders where updated_at > current_date\""
+allowed "snow connection test"
+blocked "snow sql -q \"drop table orders\""
+blocked "snowsql -q \"INSERT INTO orders VALUES (1)\""
+blocked "snow sql -f migrate.sql"
+blocked "snow app deploy"
+
+allowed "dbt compile"
+allowed "dbt parse"
+allowed "dbt ls --select orders"
+blocked "dbt run --select orders"
+blocked "dbt build"
+allowed "kubectl get pods -n example"
+blocked "kubectl apply -f deploy.yaml"
+blocked "helm upgrade --install example ./chart"
+allowed "helm template ./chart"
+
+allowed "git commit -m 'document the apply step'"
+allowed "npm run build"
+allowed "ls -la"
+allowed "grep -r 'terraform apply' docs"
+
+mkdir -p "$Q/.claude"
+echo '{"allow_deploy":["terraform apply","dbt build --target dev"]}' >"$Q/.claude/pipeline.json"
+allowed "terraform apply -auto-approve"
+allowed "dbt build --target dev --select orders"
+blocked "dbt build --target prod"
+blocked "terraform destroy"
+blocked "dbt build --target development"
+rm -rf "$Q/.claude"
 
 # ---------------------------------------------------------------- denylist-scan
 echo "denylist-scan.sh"

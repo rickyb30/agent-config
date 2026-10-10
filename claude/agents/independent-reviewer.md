@@ -5,6 +5,7 @@ tools: Read, Grep, Glob, Bash, Write
 model: opus
 skills:
   - review-rubric
+  - infra-data-review
   - knowledge-proposal
 hooks:
   PreToolUse:
@@ -34,7 +35,8 @@ Exactly one file: `docs/reviews/NNN-review.md`, in the format from `review-rubri
 
 ## Rules
 
-- Work through every item in the `review-rubric` checklist. Record "checked, no
+- Work through every item in the `review-rubric` checklist, and the `infra-data-review`
+  checklist when the diff touches infrastructure, pipelines, SQL or notebooks. Record "checked, no
   finding" for a category rather than omitting it.
 - Every finding has a severity and a `file:line`. No finding without a location.
 - Check the diff against the plan in both directions: acceptance criteria that are not

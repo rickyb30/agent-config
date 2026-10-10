@@ -45,6 +45,11 @@
         "hooks": [
           {
             "type": "command",
+            "command": "\"$HOME/.claude/hooks/guard-deploy.sh\"",
+            "timeout": 15
+          },
+          {
+            "type": "command",
             "command": "\"$HOME/.claude/hooks/secret-scan.sh\"",
             "timeout": 60
           }

@@ -34,6 +34,10 @@ Schema changes, data moves, and every interface that is added or changed, with i
 ## Must not change
 Files, interfaces and behaviours that are out of bounds.
 
+## Rollout and rollback
+Which environments change, in what order, who runs each change, and how each step is
+undone. "No deployed change" if none. Agents do not run deploys; see `guard-deploy`.
+
 ## Milestones
 
 ### M1: <outcome, not activity>
@@ -82,5 +86,5 @@ A deviation entry states the facts and the options. It does not pick one.
 ## Active plan
 
 `docs/plans/.active` holds the path of the plan being implemented, on one line. The
-`/implement` command writes it. Source writes are blocked unless it names an approved
+`/rb-implement` command writes it. Source writes are blocked unless it names an approved
 plan whose architecture is approved.
