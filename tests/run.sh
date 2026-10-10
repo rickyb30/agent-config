@@ -391,6 +391,50 @@ check "checkout is detached at the tag and linked" 0 $?
 env -u CLAUDE_HOME -u AGENT_CONFIG_HOME HOME="$H2" "$SH" "$T/scripts/bootstrap.sh" --ref v0.0.0 >/dev/null 2>&1
 check "unknown tag is refused" 1 $?
 
+# ---------------------------------------------------------------- init-project
+echo "init-project.sh"
+I="$TMP/existing"
+mkdir -p "$I/src" "$I/tests" "$I/infra" "$I/assets"
+git -C "$I" init -q
+init() { (cd "$I" && env -u CLAUDECODE "$SH" "$REPO/scripts/init-project.sh" "$@" </dev/null >"$TMP/init.log" 2>&1); echo $?; }
+
+check "refuses to run inside an agent session" 1 "$(cd "$I" && CLAUDECODE=1 "$SH" "$REPO/scripts/init-project.sh" --all </dev/null >/dev/null 2>&1; echo $?)"
+[ ! -e "$I/.claude/pipeline.json" ]
+check "refusal writes nothing" 0 $?
+
+check "dry run exits cleanly" 0 "$(init --dry-run)"
+[ ! -e "$I/.claude" ] && [ ! -e "$I/docs" ]
+check "dry run writes nothing" 0 $?
+
+check "detects source folders without a terminal" 0 "$(init)"
+check_true "detected folders are protected" jq -e '.source_paths == ["src","tests","infra"]' "$I/.claude/pipeline.json"
+[ -d "$I/docs/architecture" ] && [ -d "$I/docs/knowledge/inbox" ] && [ -f "$I/docs/knowledge/INDEX.md" ]
+check "docs folders are created" 0 $?
+check "generated config gates a protected folder" 2 "$(hook require-approved-plan.sh "$I" "$(write_json "$I/src/app.py" x)")"
+check "generated config leaves other folders alone" 0 "$(hook require-approved-plan.sh "$I" "$(write_json "$I/assets/logo.txt" x)")"
+
+echo keep >"$I/docs/knowledge/INDEX.md"
+check "second run succeeds" 0 "$(init --all)"
+check_true "existing config is not overwritten" jq -e '.source_paths == ["src","tests","infra"]' "$I/.claude/pipeline.json"
+[ "$(cat "$I/docs/knowledge/INDEX.md")" = keep ]
+check "existing files are not overwritten" 0 $?
+
+rm -rf "$I/.claude"
+check "explicit options are accepted" 0 "$(init --source-paths " src/ , ./infra" --allow-deploy "dbt build --target dev, terraform apply")"
+check_true "paths are cleaned" jq -e '.source_paths == ["src","infra"]' "$I/.claude/pipeline.json"
+check_true "deploy commands are kept whole" jq -e '.allow_deploy == ["dbt build --target dev","terraform apply"]' "$I/.claude/pipeline.json"
+check "generated allow_deploy is honoured" 0 "$(hook guard-deploy.sh "$I" "$(jq -n '{tool_name:"Bash",tool_input:{command:"dbt build --target dev --select x"}}')")"
+check "other deploys stay blocked" 2 "$(hook guard-deploy.sh "$I" "$(jq -n '{tool_name:"Bash",tool_input:{command:"dbt build --target prod"}}')")"
+
+rm -rf "$I/.claude"
+check "--all is accepted" 0 "$(init --all)"
+check_true "--all writes an empty object" jq -e '. == {}' "$I/.claude/pipeline.json"
+check "--all with --source-paths is refused" 1 "$(rm -rf "$I/.claude"; init --all --source-paths src)"
+
+N="$TMP/nothing-familiar"
+mkdir -p "$N/stuff"
+check "no familiar folders and no terminal is an error" 1 "$(cd "$N" && env -u CLAUDECODE "$SH" "$REPO/scripts/init-project.sh" </dev/null >/dev/null 2>&1; echo $?)"
+
 echo
 echo "tests: $pass passed, $fail failed."
 [ "$fail" -eq 0 ]

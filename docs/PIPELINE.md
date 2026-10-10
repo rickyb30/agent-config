@@ -32,12 +32,24 @@ Claude Code command (`/plan` and `/review` are built in).
 
 ## Opting a project in
 
-The source gate applies only to projects that contain `.claude/pipeline.json`:
+The source gate applies only to projects that contain `.claude/pipeline.json`.
 
-```bash
-mkdir -p .claude docs/{architecture,research,plans,reviews,adr,knowledge/inbox}
-echo '{}' > .claude/pipeline.json
-```
+- **New project:** create it from the project-template repository, which writes the
+  file from your answers.
+- **Existing project:** run the setup script from a terminal in the project:
+
+  ```bash
+  ~/code/agent-config/scripts/init-project.sh
+  ```
+
+  It finds the folders that look like source, asks you to confirm or change the
+  list, asks which deploy commands agents may run, then writes the file and creates
+  the `docs/` folders. It never overwrites an existing file. Options:
+  `--source-paths "src,tests"`, `--all`, `--allow-deploy "CMD, CMD"`, `--yes`,
+  `--dry-run`.
+
+The script refuses to run inside a Claude Code session, and agents are blocked from
+writing the file, because what the gate protects is your decision.
 
 With `{}`, every path except `docs/` and `.claude/` is a source path. To gate only
 some folders:

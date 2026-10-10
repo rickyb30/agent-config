@@ -74,11 +74,12 @@ re-run, and it backs up anything it replaces. Details: [docs/SETUP.md](docs/SETU
 [project-template](https://github.com/rickyb30/project-template), which sets up
 everything below.
 
-**Existing project:** switch the approval gate on and create the folders.
+**Existing project:** run the setup script from a terminal in the project. It
+detects the folders that look like source, asks you to confirm, and writes
+`.claude/pipeline.json` and the `docs/` folders.
 
 ```bash
-mkdir -p .claude docs/{architecture,research,plans,reviews,adr,knowledge/inbox}
-echo '{}' > .claude/pipeline.json
+~/code/agent-config/scripts/init-project.sh
 ```
 
 Then, in Claude Code:
@@ -109,14 +110,14 @@ Full reference: [docs/PIPELINE.md](docs/PIPELINE.md).
 | 7 commands | `/rb-design`, `/rb-intake`, `/rb-research`, `/rb-draft-plan`, `/rb-implement`, `/rb-review-diff`, `/rb-lesson` |
 | 8 skills | shared templates and checklists: intake sections, assessment, plan format, review rubric, infrastructure and data review, decision records, knowledge lookup and proposal |
 | 5 hooks | approval gate, per-agent path guard, deploy guard, secret scan, denylist scan |
-| 3 scripts | `bootstrap.sh` (install), `doctor.sh` (check a machine), `validate.sh` (lint and test this repository) |
+| 4 scripts | `bootstrap.sh` (install), `doctor.sh` (check a machine), `init-project.sh` (set up an existing project), `validate.sh` (lint and test this repository) |
 
 ```
 claude/            everything that is linked into ~/.claude
   CLAUDE.md        working style and pipeline rules
   settings.base.json
   agents/  commands/  skills/  hooks/
-scripts/           bootstrap.sh  validate.sh  doctor.sh  lib/
+scripts/           bootstrap.sh  doctor.sh  init-project.sh  validate.sh  lib/
 tests/             run.sh
 docs/              SETUP.md  PIPELINE.md  PUBLIC-SAFETY.md
 ```
