@@ -11,8 +11,7 @@ every machine you work on, installed with one command.
 
 ## What this gives you
 
-**The same setup everywhere.** Your personal machine and your office machine run
-identical agents and rules. You configure a machine once and stop re-explaining how
+**The same setup everywhere.** You configure a machine once and stop re-explaining how
 you like to work.
 
 **Problems found before code is written.** A researcher agent challenges your design
