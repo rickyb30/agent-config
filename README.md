@@ -58,7 +58,7 @@ Needs `bash`, `git`, `jq`, `gitleaks` and `python3`.
 ```bash
 git clone https://github.com/rickyb30/agent-config.git ~/code/agent-config
 cd ~/code/agent-config
-scripts/bootstrap.sh            # office machine: scripts/bootstrap.sh --ref v0.1.0
+scripts/bootstrap.sh            
 scripts/doctor.sh               # confirms everything is in place
 ```
 
