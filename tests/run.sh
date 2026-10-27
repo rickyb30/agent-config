@@ -119,6 +119,21 @@ check "source_paths gates listed folders" 2 "$(hook $G "$P" "$(write_json "$P/li
 check "source_paths leaves other folders alone" 0 "$(hook $G "$P" "$(write_json "$P/README.md" x)")"
 check "source_paths does not match on prefix only" 0 "$(hook $G "$P" "$(write_json "$P/srcdocs/x" x)")"
 
+# ---------------------------------------------------------------- guard-readonly
+echo "guard-readonly.sh"
+G=guard-readonly.sh
+ro() { jq -n --arg c "$1" '{tool_name:"Bash",tool_input:{command:$c}}'; }
+check "read-only agent may run git diff" 0 "$(hook $G "$P" "$(ro "git diff main...HEAD -- src")")"
+check "read-only agent may run git log" 0 "$(hook $G "$P" "$(ro "git log --oneline -20")")"
+check "read-only agent may read files" 0 "$(hook $G "$P" "$(jq -n '{tool_name:"Read",tool_input:{file_path:"/x"}}')")"
+check "read-only agent cannot write" 2 "$(hook $G "$P" "$(write_json "$P/src/app.py" x)")"
+check "read-only agent cannot edit" 2 "$(hook $G "$P" "$(edit_json "$P/src/app.py" a b)")"
+check "read-only agent cannot run other commands" 2 "$(hook $G "$P" "$(ro "rm -rf src")")"
+check "read-only agent cannot chain commands" 2 "$(hook $G "$P" "$(ro "git diff; rm -rf src")")"
+check "read-only agent cannot redirect" 2 "$(hook $G "$P" "$(ro "git diff > src/app.py")")"
+check "read-only agent cannot use git diff --output" 2 "$(hook $G "$P" "$(ro "git diff --output=src/app.py")")"
+check "read-only agent cannot commit" 2 "$(hook $G "$P" "$(ro "git commit -am x")")"
+
 # ---------------------------------------------------------------- guard-deploy
 echo "guard-deploy.sh"
 G=guard-deploy.sh

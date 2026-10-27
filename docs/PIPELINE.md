@@ -1,7 +1,8 @@
 # Workflow
 
-Three commands and one approval. Everything runs in your normal Claude Code session:
-no subagents, so nothing re-reads the context behind your back.
+Three commands and one approval. Everything runs in your normal Claude Code session,
+so nothing re-reads the context behind your back. The one exception is the optional
+`/rb-review`, which runs only when you ask for it.
 
 | # | You do | Command | Result |
 | --- | --- | --- | --- |
@@ -55,6 +56,28 @@ phase:
 Each phase leaves the project working. Steps that change a live environment are
 marked "(you run this)": agents don't run deploys.
 
+## Ad-hoc review
+
+`/rb-review` is optional and runs only when you ask. A separate, read-only reviewer
+with fresh context looks at the target without seeing your conversation:
+
+| You type | It reviews |
+| --- | --- |
+| `/rb-review` | uncommitted changes |
+| `/rb-review main` | everything since the branch left `main` |
+| `/rb-review docs/architecture/001-x.md` | a design doc, for example before you approve it |
+| add `--research` | also checks claims about services against their documentation |
+
+For code it checks against the active plan and its design when there are any, the
+project `CLAUDE.md`, and a fixed checklist: access, secrets, input validation, data
+exposure, failure handling, idempotency, cost and missing tests. For a design it
+checks completeness, internal consistency and the same checklist. It can't see the
+conversation, so whether the design captures what you discussed is still yours to
+check.
+
+Findings are printed in the chat with severity and location. The reviewer cannot
+change files: a hook limits it to reading and read-only git commands.
+
 ## Opting a project in
 
 The gate applies only to projects that contain `.claude/pipeline.json`.
@@ -97,6 +120,7 @@ Hooks are shell scripts and cost no tokens.
 | `require-approved-plan.sh` | No tool call may leave a design doc with `status: approved`, so approval is always yours and an approved design is read-only for Claude. To change one, set it back to `draft` yourself. |
 | `require-approved-plan.sh` | `.claude/pipeline.json` cannot be created or edited by a tool call. |
 | `guard-deploy.sh` | In every project, commands that change a live environment are blocked for Claude: infrastructure apply and destroy, cloud CLI calls that create, change or delete, warehouse SQL that writes, job and bundle deploys, `dbt` runs, `kubectl` and `helm` changes. Read, validate and plan commands pass. |
+| `guard-readonly.sh` | The reviewer agent cannot write or edit files, and its shell is limited to read-only git commands. |
 | `secret-scan.sh` | Content about to be written, and staged changes at `git commit`, are scanned with gitleaks. |
 | `denylist-scan.sh` | Commits to this repository are checked against your private denylist. |
 

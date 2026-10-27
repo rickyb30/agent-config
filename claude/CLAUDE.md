@@ -37,5 +37,7 @@ a command the human runs; nothing runs on its own.
 - Code is written only while `docs/plans/.active` names a plan whose design is
   approved. `/rb-implement` sets it.
 - If the design cannot be followed as written, stop and ask. Do not redesign.
+- `/rb-review [target]` runs an independent, read-only review on demand. Pass the
+  reviewer paths only, never a summary of the work.
 - Claude Code's auto-memory is a per-machine scratchpad. Anything durable goes into
   the project's `docs/` and is committed.
