@@ -49,21 +49,3 @@ manual.
 5. Commit from a machine whose denylist covers the source project. The pre-commit
    scans run on the way in.
 6. Read the diff once more as an outsider: could a reader tell where this came from?
-
-When in doubt, leave it out.
-
-## Running this repository on an employer's machine
-
-- Confirm first that policy allows cloning from public GitHub and running third-party
-  scripts. This repository cannot decide that.
-- Pin to a tag (`scripts/bootstrap.sh --ref vX.Y.Z`); never track `main`.
-- Review the diff between tags before moving the pin. The hooks execute on that
-  machine, so a bad merge or a compromised account would too.
-- Employer project repositories stay in the employer's git hosting. Never add a
-  personal remote to them, and never commit from them to this repository.
-
-## If something leaks
-
-Removing the file in a later commit is not enough: the content stays in history and in
-any clone or cache. Rotate any exposed credential immediately, rewrite history to
-remove the content, force-push, and tell whoever owns the information.

@@ -21,8 +21,8 @@ Everything runs in your normal session. Details: [docs/PIPELINE.md](docs/PIPELIN
 
 ## What it gives you
 
-- **The same setup everywhere.** Personal and office machines run the same commands
-  and rules, so you stop re-explaining how you like to work.
+- **The same setup everywhere.** You configure a machine once and stop re-explaining
+  how you like to work.
 - **A written design before code.** The conversation becomes a short doc you can check
   and keep, and the build follows it phase by phase.
 - **You decide when building starts.** Claude can't write code in an opted-in project
@@ -41,7 +41,7 @@ Needs `bash`, `git`, `jq`, `gitleaks` and `python3`.
 ```bash
 git clone https://github.com/rickyb30/agent-config.git ~/code/agent-config
 cd ~/code/agent-config
-scripts/bootstrap.sh            # office machine: scripts/bootstrap.sh --ref <tag>
+scripts/bootstrap.sh
 scripts/doctor.sh               # confirms everything is in place
 ```
 
