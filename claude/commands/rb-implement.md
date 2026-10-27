@@ -1,24 +1,33 @@
 ---
-description: Run the implementer on one milestone of an approved plan.
-argument-hint: <docs/plans/NNN-name.md> [milestone]
+description: Implement the next phase (or a named phase, or all remaining phases) of a plan in docs/plans/.
+argument-hint: <docs/plans/NNN-name.md> [phase-number | all]
 disable-model-invocation: true
 ---
 
-Run the implement stage with: $ARGUMENTS
+Implement from this plan: $ARGUMENTS
 
-1. The first argument is the plan path; the optional second is a milestone such as `M2`.
-   If no plan was given, list `docs/plans/` and ask.
-2. Read the plan's front matter. If `status` is not `approved`, or the architecture it
-   references is not `approved`, stop and say which gate is closed. Do not offer to
-   change it.
-3. Read `docs/plans/NNN-log.md` if it exists.
-   - If the latest entry is a `DEVIATION` without a recorded human decision, stop and
-     show it.
-   - If no milestone was given, pick the first milestone with no `done` entry.
-4. Write the plan path, on one line, to `docs/plans/.active`.
-5. Delegate to the `implementer` subagent with the plan path and that one milestone.
-6. When it returns, read the new log entry and report: milestone, `done` or
-   `deviation`, and the check results as logged.
+1. The first argument is the plan path. If it is missing, list `docs/plans/` and ask.
+2. Read the plan, then the design named in its `design:` front matter. If the design's
+   `status` is not `approved`, stop and say so. Do not offer to change it.
+3. Write the plan path, on one line, to `docs/plans/.active`. Code can only be written
+   while that file names a plan whose design is approved.
+4. Choose the work: the phase number given; otherwise the first phase still marked
+   `- [ ] done`; with `all`, every remaining phase in order.
+5. For each phase:
+   - Build only that phase, following the project `CLAUDE.md`.
+   - Run the project's checks: `scripts/verify.sh` if it exists, otherwise the
+     commands in `CLAUDE.md`. Fix failures that belong to this phase.
+   - When the checks pass, change that phase's `- [ ] done` to `- [x] done`.
+   - Report what changed, the real check results, and any command the human needs to
+     run (deploys and applies are theirs).
+6. Stop and ask, without improvising, when:
+   - the design or plan is wrong, unclear, or cannot be followed as written;
+   - the phase would need something the design does not cover, such as a new service,
+     a different stack, or a change to identity or security;
+   - a check fails for a reason outside the phase;
+   - a hook blocks a tool call.
+7. When every phase is marked done, delete `docs/plans/.active` and say the plan is
+   complete.
 
-Run one milestone per invocation. Do not start the next milestone, and do not resolve
-a deviation yourself: a deviation goes to the human.
+Never edit the design, never run commands that change a live environment, and do not
+commit unless asked.

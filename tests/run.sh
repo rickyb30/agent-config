@@ -84,37 +84,33 @@ check "path with .. is blocked" 2 "$(hook $G "$P" "$(write_json "$P/docs/../src/
 check "pipeline.json is human-only" 2 "$(hook $G "$P" "$(write_json "$P/.claude/pipeline.json" '{}')")"
 
 doc draft >"$P/docs/architecture/001-widget.md"
-doc draft 'architecture: docs/architecture/001-widget.md
-' >"$P/docs/plans/001-widget.md"
+printf -- '---\ndesign: docs/architecture/001-widget.md\n---\n\n## Phase 1: x\n- [ ] done\n' >"$P/docs/plans/001-widget.md"
 echo "docs/plans/001-widget.md" >"$P/docs/plans/.active"
-check "draft plan blocks source" 2 "$(hook $G "$P" "$(write_json "$P/src/app.py" x)")"
-
-doc approved 'architecture: docs/architecture/001-widget.md
-' >"$P/docs/plans/001-widget.md"
-check "approved plan with draft architecture blocks source" 2 "$(hook $G "$P" "$(write_json "$P/src/app.py" x)")"
+check "draft design blocks source" 2 "$(hook $G "$P" "$(write_json "$P/src/app.py" x)")"
 
 doc approved >"$P/docs/architecture/001-widget.md"
-check "approved plan and architecture allow source" 0 "$(hook $G "$P" "$(write_json "$P/src/app.py" x)")"
+check "approved design allows source" 0 "$(hook $G "$P" "$(write_json "$P/src/app.py" x)")"
 check "edit to source allowed too" 0 "$(hook $G "$P" "$(edit_json "$P/src/app.py" a b)")"
+check "agent may tick a phase in the plan" 0 "$(hook $G "$P" "$(edit_json "$P/docs/plans/001-widget.md" "- [ ] done" "- [x] done")")"
 
-doc approved >"$P/docs/plans/001-widget.md"
-check "approved plan without architecture reference blocks source" 2 "$(hook $G "$P" "$(write_json "$P/src/app.py" x)")"
+printf -- '---\narchitecture: docs/architecture/001-widget.md\n---\n' >"$P/docs/plans/001-widget.md"
+check "older architecture: key is still accepted" 0 "$(hook $G "$P" "$(write_json "$P/src/app.py" x)")"
+
+printf -- '---\ndate: 2026-01-01\n---\n' >"$P/docs/plans/001-widget.md"
+check "plan without a design reference blocks source" 2 "$(hook $G "$P" "$(write_json "$P/src/app.py" x)")"
 
 echo "../outside.md" >"$P/docs/plans/.active"
 check "active pointer outside docs/plans is blocked" 2 "$(hook $G "$P" "$(write_json "$P/src/app.py" x)")"
 
 # approval is human-only
-doc draft >"$P/docs/plans/002-next.md"
-check "agent may write a draft plan" 0 "$(hook $G "$P" "$(write_json "$P/docs/plans/002-next.md" "$(doc draft)")")"
-check "agent may not write an approved plan" 2 "$(hook $G "$P" "$(write_json "$P/docs/plans/002-next.md" "$(doc approved)")")"
-check "agent may not flip draft to approved by edit" 2 "$(hook $G "$P" "$(edit_json "$P/docs/plans/002-next.md" draft approved)")"
-check "split edit that ends approved is blocked" 2 "$(hook $G "$P" "$(edit_json "$P/docs/plans/002-next.md" "raft
----" "raft
----" | jq '.tool_input.old_string="status: draft" | .tool_input.new_string="status:   Approved"')")"
-check "agent may set an architecture to challenged" 0 "$(hook $G "$P" "$(edit_json "$P/docs/plans/002-next.md" draft challenged)")"
-check "approved architecture is read-only for agents" 2 "$(hook $G "$P" "$(edit_json "$P/docs/architecture/001-widget.md" "# Doc" "# Changed")")"
+doc draft >"$P/docs/architecture/002-next.md"
+check "agent may write a draft design" 0 "$(hook $G "$P" "$(write_json "$P/docs/architecture/002-next.md" "$(doc draft)")")"
+check "agent may not write an approved design" 2 "$(hook $G "$P" "$(write_json "$P/docs/architecture/002-next.md" "$(doc approved)")")"
+check "agent may not flip draft to approved by edit" 2 "$(hook $G "$P" "$(edit_json "$P/docs/architecture/002-next.md" draft approved)")"
+check "split edit that ends approved is blocked" 2 "$(hook $G "$P" "$(edit_json "$P/docs/architecture/002-next.md" x y | jq '.tool_input.old_string="status: draft" | .tool_input.new_string="status:   Approved"')")"
+check "approved design is read-only for agents" 2 "$(hook $G "$P" "$(edit_json "$P/docs/architecture/001-widget.md" "# Doc" "# Changed")")"
 check "agent may demote approved to draft" 0 "$(hook $G "$P" "$(edit_json "$P/docs/architecture/001-widget.md" approved draft)")"
-check "the word approved in a body is fine" 0 "$(hook $G "$P" "$(edit_json "$P/docs/plans/002-next.md" "# Doc" "Follows the approved architecture.")")"
+check "the word approved in a body is fine" 0 "$(hook $G "$P" "$(edit_json "$P/docs/architecture/002-next.md" "# Doc" "Uses the approved base image.")")"
 
 # explicit source_paths
 echo '{"source_paths":["src","lib/"]}' >"$P/.claude/pipeline.json"
@@ -122,38 +118,6 @@ rm "$P/docs/plans/.active"
 check "source_paths gates listed folders" 2 "$(hook $G "$P" "$(write_json "$P/lib/x.py" x)")"
 check "source_paths leaves other folders alone" 0 "$(hook $G "$P" "$(write_json "$P/README.md" x)")"
 check "source_paths does not match on prefix only" 0 "$(hook $G "$P" "$(write_json "$P/srcdocs/x" x)")"
-
-# ---------------------------------------------------------------- guard-paths
-echo "guard-paths.sh"
-G=guard-paths.sh
-R=architecture-researcher
-check "main session is unrestricted" 0 "$(hook $G "$P" "$(write_json "$P/src/app.py" x)")"
-check "researcher writes docs/research" 0 "$(hook $G "$P" "$(agent_write_json $R "$P/docs/research/001-assessment.md")")"
-check "researcher cannot write source" 2 "$(hook $G "$P" "$(agent_write_json $R "$P/src/app.py")")"
-check "researcher cannot write the architecture doc" 2 "$(hook $G "$P" "$(agent_write_json $R "$P/docs/architecture/001-widget.md")")"
-check "researcher cannot write docs/plans" 2 "$(hook $G "$P" "$(agent_write_json $R "$P/docs/plans/001-widget.md")")"
-check "researcher cannot write outside the project" 2 "$(hook $G "$P" "$(agent_write_json $R "$TMP/elsewhere.md")")"
-check "researcher cannot escape with .." 2 "$(hook $G "$P" "$(agent_write_json $R "$P/docs/research/../../src/a")")"
-check "researcher may propose knowledge" 0 "$(hook $G "$P" "$(agent_write_json $R "$P/docs/knowledge/inbox/x.md")")"
-check "role given as argument works without agent_type" 2 "$(hook $G "$P" "$(write_json "$P/src/app.py" x)" $R)"
-check "planner writes docs/plans" 0 "$(hook $G "$P" "$(agent_write_json engineering-planner "$P/docs/plans/001-widget.md")")"
-check "planner writes docs/adr" 0 "$(hook $G "$P" "$(agent_write_json engineering-planner "$P/docs/adr/0001-store.md")")"
-check "planner cannot write docs/reviews" 2 "$(hook $G "$P" "$(agent_write_json engineering-planner "$P/docs/reviews/001-review.md")")"
-check "reviewer writes docs/reviews" 0 "$(hook $G "$P" "$(agent_write_json independent-reviewer "$P/docs/reviews/001-review.md")")"
-check "reviewer cannot edit source" 2 "$(hook $G "$P" "$(agent_write_json independent-reviewer "$P/src/app.py")")"
-check "implementer writes source" 0 "$(hook $G "$P" "$(agent_write_json implementer "$P/src/app.py")")"
-check "implementer cannot write curated knowledge" 2 "$(hook $G "$P" "$(agent_write_json implementer "$P/docs/knowledge/patterns/x.md")")"
-check "implementer cannot write the knowledge index" 2 "$(hook $G "$P" "$(agent_write_json implementer "$P/docs/knowledge/INDEX.md")")"
-check "implementer may propose knowledge" 0 "$(hook $G "$P" "$(agent_write_json implementer "$P/docs/knowledge/inbox/x.md")")"
-V=independent-reviewer
-check "reviewer may run git diff" 0 "$(hook $G "$P" "$(bash_json $V "git diff main...HEAD -- src")")"
-check "reviewer may run git log" 0 "$(hook $G "$P" "$(bash_json $V "git log --oneline -20")")"
-check "reviewer cannot run other commands" 2 "$(hook $G "$P" "$(bash_json $V "rm -rf src")")"
-check "reviewer cannot chain commands" 2 "$(hook $G "$P" "$(bash_json $V "git diff; rm -rf src")")"
-check "reviewer cannot redirect" 2 "$(hook $G "$P" "$(bash_json $V "git diff > src/app.py")")"
-check "reviewer cannot use git diff --output" 2 "$(hook $G "$P" "$(bash_json $V "git diff --output=src/app.py")")"
-check "reviewer cannot run git commit" 2 "$(hook $G "$P" "$(bash_json $V "git commit -am x")")"
-check "implementer bash is unrestricted" 0 "$(hook $G "$P" "$(bash_json implementer "npm test && npm run lint")")"
 
 # ---------------------------------------------------------------- guard-deploy
 echo "guard-deploy.sh"
@@ -323,10 +287,11 @@ B="$TMP/checkout"
 mkdir -p "$B"
 (cd "$REPO" && tar cf - --exclude .git .) | (cd "$B" && tar xf -)
 H="$TMP/home"
-mkdir -p "$H/.claude/skills/synced/kept" "$H/.claude/agents"
+mkdir -p "$H/.claude/skills/synced/kept" "$H/.claude/agents" "$H/.claude/commands"
 echo "my old instructions" >"$H/.claude/CLAUDE.md"
 echo '{"model":"opus"}' >"$H/.claude/settings.json"
-echo "old agent" >"$H/.claude/agents/implementer.md"
+echo "old command" >"$H/.claude/commands/rb-implement.md"
+ln -s "$B/claude/skills/plan-format" "$H/.claude/skills/plan-format"
 echo "mine" >"$H/.claude/agents/my-own-agent.md"
 boot() { HOME="$H" CLAUDE_HOME="" AGENT_CONFIG_HOME="" env -u CLAUDE_HOME -u AGENT_CONFIG_HOME HOME="$H" "$SH" "$B/scripts/bootstrap.sh" "$@"; }
 snapshot() { (cd "$H" && find . | sort && find . -type l -exec readlink {} \; | sort && find . -type f -exec cksum {} \; | sort); }
@@ -340,14 +305,16 @@ boot >"$TMP/boot1.log" 2>&1
 check "first bootstrap succeeds" 0 $?
 [ "$(readlink "$H/.claude/CLAUDE.md")" = "$B/claude/CLAUDE.md" ]
 check "CLAUDE.md is linked" 0 $?
-[ "$(readlink "$H/.claude/hooks/guard-paths.sh")" = "$B/claude/hooks/guard-paths.sh" ] && [ -L "$H/.claude/hooks/lib" ]
+[ "$(readlink "$H/.claude/hooks/guard-deploy.sh")" = "$B/claude/hooks/guard-deploy.sh" ] && [ -L "$H/.claude/hooks/lib" ]
 check "hooks are linked per entry" 0 $?
 [ -d "$H/.claude/skills/synced/kept" ] && [ ! -L "$H/.claude/skills" ]
 check "existing skills folder content is preserved" 0 $?
 [ "$(cat "$H/.claude/agents/my-own-agent.md")" = mine ]
 check "unrelated agent file is left alone" 0 $?
 check_true "old CLAUDE.md was backed up" grep -rqx "my old instructions" "$H/.claude/backups/agent-config"
-check_true "old same-named agent was backed up" grep -rqx "old agent" "$H/.claude/backups/agent-config"
+check_true "old same-named command was backed up" grep -rqx "old command" "$H/.claude/backups/agent-config"
+[ ! -L "$H/.claude/skills/plan-format" ]
+check "link left by an older version is pruned" 0 $?
 check_true "existing settings seeded settings.local.json" jq -e '.model == "opus"' "$H/.config/agent-config/settings.local.json"
 check_true "generated settings keep the local model" jq -e '.model == "opus"' "$H/.claude/settings.json"
 check_true "generated settings wire the hooks" jq -e '.hooks.PreToolUse | length >= 1' "$H/.claude/settings.json"
@@ -365,9 +332,9 @@ HOME="$H" env -u CLAUDE_HOME -u AGENT_CONFIG_HOME HOME="$H" PATH="$TMP/bin:$PATH
 check_true "doctor finds every link intact" grep -q "link(s) intact" "$TMP/doctor.log"
 check_true "doctor finds settings in sync" grep -q "settings.json matches" "$TMP/doctor.log"
 
-rm "$B/claude/agents/implementer.md"
+rm "$B/claude/commands/rb-intake.md"
 boot >/dev/null 2>&1
-[ ! -L "$H/.claude/agents/implementer.md" ]
+[ ! -L "$H/.claude/commands/rb-intake.md" ]
 check "stale link is pruned when an entry is removed" 0 $?
 
 # --ref pins a tag
@@ -408,15 +375,15 @@ check "dry run writes nothing" 0 $?
 
 check "detects source folders without a terminal" 0 "$(init)"
 check_true "detected folders are protected" jq -e '.source_paths == ["src","tests","infra"]' "$I/.claude/pipeline.json"
-[ -d "$I/docs/architecture" ] && [ -d "$I/docs/knowledge/inbox" ] && [ -f "$I/docs/knowledge/INDEX.md" ]
+[ -d "$I/docs/architecture" ] && [ -d "$I/docs/plans" ]
 check "docs folders are created" 0 $?
 check "generated config gates a protected folder" 2 "$(hook require-approved-plan.sh "$I" "$(write_json "$I/src/app.py" x)")"
 check "generated config leaves other folders alone" 0 "$(hook require-approved-plan.sh "$I" "$(write_json "$I/assets/logo.txt" x)")"
 
-echo keep >"$I/docs/knowledge/INDEX.md"
+echo keep >"$I/docs/architecture/.gitkeep"
 check "second run succeeds" 0 "$(init --all)"
 check_true "existing config is not overwritten" jq -e '.source_paths == ["src","tests","infra"]' "$I/.claude/pipeline.json"
-[ "$(cat "$I/docs/knowledge/INDEX.md")" = keep ]
+[ "$(cat "$I/docs/architecture/.gitkeep")" = keep ]
 check "existing files are not overwritten" 0 $?
 
 rm -rf "$I/.claude"

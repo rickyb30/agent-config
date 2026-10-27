@@ -22,7 +22,7 @@ SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd -P)
 
 # Folder names that usually hold code, infrastructure or data logic.
 CANDIDATES="src lib app apps packages services functions tests test infra infrastructure terraform modules bicep models macros seeds snapshots dbt sql migrations notebooks jobs pipelines workflows dags"
-FOLDERS="docs/architecture docs/research docs/plans docs/reviews docs/adr docs/knowledge/inbox docs/knowledge/patterns docs/knowledge/lessons docs/knowledge/references"
+FOLDERS="docs/architecture docs/plans"
 
 source_paths=""
 have_source_paths=0
@@ -82,23 +82,7 @@ make_folders() {
       : >"$folder/.gitkeep"
     fi
   done
-  if [ ! -f docs/knowledge/INDEX.md ]; then
-    made=$((made + 1))
-    if [ "$dry" -eq 1 ]; then
-      info "would create docs/knowledge/INDEX.md"
-    else
-      cat >docs/knowledge/INDEX.md <<'EOF'
-# Knowledge index
-
-One line per accepted entry. Agents read this file first and open an entry only when
-its summary or tags match the task. Only a person edits this file.
-
-| Path | Summary | Tags |
-| --- | --- | --- |
-EOF
-    fi
-  fi
-  [ "$made" -eq 0 ] || [ "$dry" -eq 1 ] || info "created $made folder(s) and file(s) under docs/"
+  [ "$made" -eq 0 ] || [ "$dry" -eq 1 ] || info "created $made folder(s) under docs/"
 }
 
 if [ -f "$config" ]; then
@@ -119,7 +103,7 @@ if [ "$all" -eq 0 ] && [ "$have_source_paths" -eq 0 ]; then
     source_paths="$detected"
   else
     info "The approval gate blocks agents from writing to the folders you protect until"
-    info "you have approved a design and a plan."
+    info "you have approved a design."
     if [ -n "$detected" ]; then
       info "Folders found here that look like source: $detected"
       printf 'Protect these? [Enter = yes | type your own list, e.g. src,tests | all = everything except docs/ and .claude/] '
@@ -173,8 +157,8 @@ make_folders
 
 info ""
 info "Next, in a Claude Code session in this project:"
-info "  1. Talk a design through, then /rb-design <name>"
-info "  2. /rb-intake and /rb-research on the file it writes"
-info "  3. Set status: approved in the design yourself, then /rb-draft-plan"
+info "  1. Talk the idea through, then /rb-design <name>"
+info "  2. Review the doc and set status: approved in it yourself"
+info "  3. /rb-intake <design>, then /rb-implement <plan>"
 [ -f CLAUDE.md ] || info "Tip: this project has no CLAUDE.md. Add one with the stack and the commands that run its checks."
 info "To change what is protected later, edit $config in your editor."

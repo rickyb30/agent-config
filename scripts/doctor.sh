@@ -49,7 +49,7 @@ if command -v claude >/dev/null 2>&1; then
       if [ "$major" -gt 2 ] || { [ "$major" -eq 2 ] && [ "$minor" -ge 1 ]; }; then
         ok "claude $cv"
       else
-        meh "claude $cv is old. The path guard relies on agent front matter hooks and the agent_type hook field; update Claude Code."
+        meh "claude $cv is old. Some hook features may be missing; update Claude Code."
       fi
       ;;
   esac

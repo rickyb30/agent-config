@@ -1,125 +1,112 @@
-# Pipeline
+# Workflow
 
-Four agents, two human gates. Files are the contract between stages: each stage reads
-fixed paths and writes one output, so any stage can be re-run or inspected on its own.
+Three commands and one approval. Everything runs in your normal Claude Code session:
+no subagents, so nothing re-reads the context behind your back.
 
-## Stages
+| # | You do | Command | Result |
+| --- | --- | --- | --- |
+| 1 | Discuss the idea with Claude, and research anything you need to, until you have conclusions | | |
+| 2 | Have it written up | `/rb-design <name>` | `docs/architecture/NNN-name.md`, `status: draft` |
+| 3 | Review it, then set `status: approved` yourself | | **the gate** |
+| 4 | Break it into phases | `/rb-intake <design>` | `docs/plans/NNN-name.md` |
+| 5 | Build | `/rb-implement <plan>` | code and tests for the next phase; the phase is ticked |
 
-| # | Stage | Entry point | Runs as | Reads | Writes |
-| --- | --- | --- | --- | --- | --- |
-| 1 | Design | you, in conversation; `/rb-design <name>` writes it up | main session | the conversation | `docs/architecture/NNN-name.md` (`status: draft`) |
-| 2 | Intake | `/rb-intake <doc>` | main session | the doc | nothing; prints a gap report |
-| 3 | Research | `/rb-research <doc>` | `architecture-researcher` | the doc, the repo, the web | `docs/research/NNN-assessment.md`; doc becomes `challenged` |
-| | **Gate 1** | you | | the assessment | you revise the doc and set `status: approved` |
-| 4 | Plan | `/rb-draft-plan <doc>` | `engineering-planner` | approved doc, assessment | `docs/plans/NNN-name.md` (`status: draft`), `docs/adr/` |
-| | **Gate 2** | you | | the plan | you set `status: approved` |
-| 5 | Implement | `/rb-implement <plan> [M#]` | `implementer` | approved plan | source, tests, `docs/plans/NNN-log.md` |
-| 6 | Review | `/rb-review-diff [base-ref]` | `independent-reviewer` | approved plan, the diff | `docs/reviews/NNN-review.md` |
-| 7 | Verify | `scripts/verify.sh`, CI | no model | | |
+Repeat step 5 for each phase, or run `/rb-implement <plan> all` to do the remaining
+phases in one go. `/rb-implement <plan> 2` runs phase 2 specifically.
 
-`/rb-lesson <text>` writes a knowledge proposal at any point.
+## Research
 
-Every pipeline command carries the `rb-` prefix so none collides with a built-in
-Claude Code command (`/plan` and `/review` are built in).
+Research happens in step 1, before the design is written: ask Claude to look up
+documentation, limits, pricing or how a service behaves while you discuss. Points that
+came from research keep their source link in the design. There is no research stage
+after the design is locked.
 
-## Status values
+## The design doc
 
-| Document | Values | Who moves it |
-| --- | --- | --- |
-| Architecture | `draft` → `challenged` → `approved` | `/rb-research` sets `challenged`; only you set `approved` |
-| Plan | `draft` → `approved` | only you set `approved` |
-| Knowledge entry | `proposed` → `accepted` → `retired` | agents create `proposed`; you do the rest |
+`/rb-design` writes five sections from what you discussed:
+
+1. **Purpose**: what the project is for.
+2. **High-level architecture**: the parts and how they connect.
+3. **Tech stack**.
+4. **Identity**, when the project needs it.
+5. **Security and governance**, when the project needs it.
+
+Sections 4 and 5 say `Not applicable: <reason>` for projects that don't need them,
+such as a workflow that runs inside a platform with its built-in permissions. Anything
+needed but not discussed is marked `TODO: not discussed` rather than guessed, and open
+questions are listed at the end.
+
+Review it against your conversation before approving: is everything captured, and is
+nothing invented?
+
+## The phases
+
+`/rb-intake` refuses to run until the design is approved. It writes one section per
+phase:
+
+```markdown
+## Phase 1: the query runs and returns the top ten
+- Build: the scheduled workflow and its query
+- Files: workflows/expensive-queries.yaml
+- Done when: a manual run lists ten queries with their cost
+- [ ] done
+```
+
+Each phase leaves the project working. Steps that change a live environment are
+marked "(you run this)": agents don't run deploys.
 
 ## Opting a project in
 
-The source gate applies only to projects that contain `.claude/pipeline.json`.
+The gate applies only to projects that contain `.claude/pipeline.json`.
 
-- **New project:** create it from the project-template repository, which writes the
-  file from your answers.
-- **Existing project:** run the setup script from a terminal in the project:
+- **New project:** create it from the project-template repository.
+- **Existing project:** run, from a terminal in the project,
 
   ```bash
   ~/code/agent-config/scripts/init-project.sh
   ```
 
-  It finds the folders that look like source, asks you to confirm or change the
-  list, asks which deploy commands agents may run, then writes the file and creates
-  the `docs/` folders. It never overwrites an existing file. Options:
-  `--source-paths "src,tests"`, `--all`, `--allow-deploy "CMD, CMD"`, `--yes`,
-  `--dry-run`.
+  It finds the folders that look like source, asks you to confirm, writes the file,
+  and creates `docs/architecture/` and `docs/plans/`. It never overwrites a file.
+  Options: `--source-paths "src,tests"`, `--all`, `--allow-deploy "CMD, CMD"`,
+  `--yes`, `--dry-run`.
 
-The script refuses to run inside a Claude Code session, and agents are blocked from
-writing the file, because what the gate protects is your decision.
-
-With `{}`, every path except `docs/` and `.claude/` is a source path. To gate only
-some folders:
+`.claude/pipeline.json` settings:
 
 ```json
-{ "source_paths": ["src", "tests", "migrations"] }
+{
+  "source_paths": ["src", "tests"],
+  "allow_deploy": ["dbt build --target dev"]
+}
 ```
 
-To let agents run specific environment-changing commands in a project, list them as
-command prefixes:
+- `source_paths`: folders that need an approved design before Claude writes to them.
+  Empty or absent means everything except `docs/` and `.claude/`.
+- `allow_deploy`: environment-changing commands Claude may run in this project.
+  Matched from the start of the command.
 
-```json
-{ "allow_deploy": ["terraform apply", "dbt build --target dev"] }
-```
-
-`.claude/pipeline.json` can only be created and edited by you, never by a tool call.
-
-The path guard for the researcher, planner and reviewer, and the deploy guard, apply
-in every project.
+Only you can create or edit this file; Claude is blocked from it.
 
 ## What the hooks enforce
 
+Hooks are shell scripts and cost no tokens.
+
 | Hook | Rule |
 | --- | --- |
-| `require-approved-plan.sh` | In an opted-in project, a write to a source path is blocked unless `docs/plans/.active` names a plan with `status: approved` whose `architecture:` document is also `approved`. |
-| `require-approved-plan.sh` | No tool call may leave a file in `docs/architecture/` or `docs/plans/` with `status: approved`. Approved documents are therefore read-only for agents, and approval cannot be granted by an agent. |
-| `require-approved-plan.sh` | `.claude/pipeline.json` cannot be edited by a tool call. |
-| `guard-paths.sh` | Researcher writes only `docs/research/`; planner only `docs/plans/` and `docs/adr/`; reviewer only `docs/reviews/`. Their shell access is limited to read-only git commands. |
-| `guard-paths.sh` | Any subagent may write `docs/knowledge/inbox/`; none may write elsewhere under `docs/knowledge/`. |
-| `guard-deploy.sh` | In every project, shell commands that change a live environment are blocked: infrastructure apply and destroy, cloud CLI calls that create, change or delete, warehouse SQL that writes, job and bundle deploys, `dbt` runs, `kubectl` and `helm` changes. Read, validate and plan commands pass. |
+| `require-approved-plan.sh` | In an opted-in project, a write to a source path is blocked unless `docs/plans/.active` names a plan whose design has `status: approved`. `/rb-implement` sets that file and deletes it when every phase is done. |
+| `require-approved-plan.sh` | No tool call may leave a design doc with `status: approved`, so approval is always yours and an approved design is read-only for Claude. To change one, set it back to `draft` yourself. |
+| `require-approved-plan.sh` | `.claude/pipeline.json` cannot be created or edited by a tool call. |
+| `guard-deploy.sh` | In every project, commands that change a live environment are blocked for Claude: infrastructure apply and destroy, cloud CLI calls that create, change or delete, warehouse SQL that writes, job and bundle deploys, `dbt` runs, `kubectl` and `helm` changes. Read, validate and plan commands pass. |
 | `secret-scan.sh` | Content about to be written, and staged changes at `git commit`, are scanned with gitleaks. |
-
-To edit an approved document, set its status back to `draft` yourself, make or request
-the change, and approve it again.
+| `denylist-scan.sh` | Commits to this repository are checked against your private denylist. |
 
 ## Known limits
 
-Be clear about what the gates are: they stop an agent from drifting past a gate, and
-they make every approval a visible act of yours. They are not a sandbox.
-
-- The source gate covers the file-writing tools. An agent with shell access (the
-  implementer, the main session) can still change files through a shell command.
-  Review and `scripts/verify.sh` are the backstop.
-- The deploy guard reads the command text only. It cannot see what a script, a
-  Makefile target or a CI trigger does, and a value that happens to equal a blocked
-  verb causes a false block. The control that actually holds is credentials: give
-  agents read-only or plan-only cloud identities and keep apply rights in CI.
-- Work done outside the repository (a notebook edited in a workspace UI, a worksheet
-  in a warehouse console) passes through no hook and no review.
-- The main session is not restricted by the path guard, because you direct it.
-- A plan stays `approved` after its work is finished. Remove `docs/plans/.active` when
-  a plan is complete to close the source gate again.
-- The role-based guard relies on agent front matter hooks and on the `agent_type` field
-  of hook input. On an old Claude Code release neither may exist; `scripts/doctor.sh`
-  warns about this.
-
-## Deviations
-
-The implementer does not decide. When the plan cannot be followed, it appends a
-`DEVIATION` entry to `docs/plans/NNN-log.md` and stops. `/rb-implement` refuses to continue
-past an unresolved deviation. You record the decision in the log, or revise the plan
-(back to `draft`, then approve again).
-
-## Knowledge loop
-
-1. After a review or a failed run, the reviewer or implementer writes a proposal to
-   `docs/knowledge/inbox/`. `/rb-lesson` does the same by hand.
-2. You read it, then delete it or move it into `patterns/`, `lessons/` or
-   `references/`, set `status: accepted`, and add one line to `INDEX.md`.
-3. Agents read `INDEX.md` first and open only matching entries.
-
-Nothing moves between projects automatically. See [PUBLIC-SAFETY.md](PUBLIC-SAFETY.md)
-for how a lesson is promoted into this repository.
+- The gate covers the file-writing tools. A shell command can still change files;
+  the gate stops drift, it is not a sandbox.
+- The deploy guard reads command text only. It can't see what a script or Makefile
+  target does, and it can block a command that merely mentions a deploy command.
+  Read-only cloud credentials for Claude are the control that really holds.
+- Work done outside the repository, in a platform's web UI, passes through no hook.
+- After a plan is finished its design stays approved. `/rb-implement` removes
+  `docs/plans/.active` when all phases are done, which closes the gate again.

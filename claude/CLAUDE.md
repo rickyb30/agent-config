@@ -17,41 +17,25 @@ appears in both places gets deleted from one.
   blocks these unless the project allows a specific command.
 - Never put secrets, credentials, employer names, internal hostnames or personal paths
   into any file. Reference an environment variable or a secret store instead.
+- Keep commit messages and pull request descriptions short: what changed and why, in a
+  few lines. Never add a `Co-Authored-By: Claude` trailer, a "Generated with Claude
+  Code" line, or any other attribution to Claude.
 
-## Pipeline
+## Workflow
 
-Projects that contain `.claude/pipeline.json` use a gated pipeline. Files are the
-contract between stages; each stage reads and writes fixed paths.
+Projects that contain `.claude/pipeline.json` use a three-step workflow. Each step is
+a command the human runs; nothing runs on its own.
 
-| Stage | Entry point | Reads | Writes |
-| --- | --- | --- | --- |
-| Design | human, with `/rb-design` to write it up | the conversation | `docs/architecture/NNN-name.md` (draft) |
-| Intake | `/rb-intake` | architecture doc | nothing, reports gaps |
-| Research | `/rb-research` | architecture doc, repo | `docs/research/NNN-assessment.md` |
-| Plan | `/rb-draft-plan` | approved architecture | `docs/plans/NNN-name.md` (draft) |
-| Implement | `/rb-implement` | approved plan | source, tests, `docs/plans/NNN-log.md` |
-| Review | `/rb-review-diff` | approved plan, diff | `docs/reviews/NNN-review.md` |
-| Verify | `scripts/verify.sh`, CI | | |
+| Step | Command | Writes |
+| --- | --- | --- |
+| Design | `/rb-design <name>`, after discussing and researching the idea | `docs/architecture/NNN-name.md` (draft) |
+| Phases | `/rb-intake <design>`, once the human has approved it | `docs/plans/NNN-name.md` |
+| Build | `/rb-implement <plan> [phase \| all]` | code and tests; ticks the phase |
 
-Rules that hold in every stage:
-
-- **Two human gates.** Only a human sets `status: approved` on an architecture doc or a
-  plan. Never set it, never ask another agent to set it, and never work around a blocked
-  write. Hooks enforce this; a blocked tool call is the system working as designed.
-- **One orchestrator.** The main session runs the pipeline commands and delegates to
-  subagents. Subagents do not delegate further.
-- **Stay in your lane.** Each agent writes only its own output folder. If the task
-  seems to need more, stop and report.
-- **Deviations are reports, not decisions.** If the plan cannot be followed as written,
-  record why in `docs/plans/NNN-log.md` and stop.
-- **Independent review.** The reviewer receives the plan and the diff, never a summary
-  of what the implementer believes it did.
-
-## Knowledge
-
-- Durable project knowledge lives in the project's `docs/knowledge/`. Read `INDEX.md`
-  first and open only the entries that match the task.
-- Agents propose knowledge by writing to `docs/knowledge/inbox/`. A human curates it.
-- Claude Code's auto-memory is a per-machine scratchpad. Anything worth keeping goes
-  into `docs/knowledge/` and is committed.
-- Nothing moves between projects automatically.
+- **One human gate.** Only a human sets `status: approved` on a design. Never set it,
+  and never work around a blocked write: a hook enforces this.
+- Code is written only while `docs/plans/.active` names a plan whose design is
+  approved. `/rb-implement` sets it.
+- If the design cannot be followed as written, stop and ask. Do not redesign.
+- Claude Code's auto-memory is a per-machine scratchpad. Anything durable goes into
+  the project's `docs/` and is committed.

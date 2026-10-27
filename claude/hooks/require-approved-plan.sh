@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # PreToolUse hook (Write, Edit, MultiEdit, NotebookEdit).
 #
-# In a project that opts in with .claude/pipeline.json this enforces both approval gates:
+# In a project that opts in with .claude/pipeline.json this enforces the approval gate:
 #   1. Source paths are writable only while docs/plans/.active names a plan whose
-#      front matter says status: approved and whose architecture is also approved.
-#   2. Approval is human-only: no tool call may leave an architecture or plan doc
-#      with status: approved, and .claude/pipeline.json itself cannot be edited.
+#      design (docs/architecture/...) has status: approved.
+#   2. Approval is human-only: no tool call may leave a design doc with
+#      status: approved, and .claude/pipeline.json itself cannot be edited.
 #
 # Projects without .claude/pipeline.json are not affected.
 set -u
@@ -76,9 +76,9 @@ resulting_content() {
 }
 
 case "$rel" in
-  docs/architecture/*.md | docs/plans/*.md)
+  docs/architecture/*.md)
     if [ "$(resulting_content | doc_status)" = approved ]; then
-      hook_deny "Blocked: '$rel' would have status: approved after this change. Approval is a human gate, and approved documents are read-only for agents. A human sets the status (or sets it back to draft before asking for edits)."
+      hook_deny "Blocked: '$rel' would have status: approved after this change. Approval is a human gate, and an approved design is read-only for agents. The human sets the status, or sets it back to draft before asking for edits."
     fi
     exit 0
     ;;
@@ -106,7 +106,7 @@ fi
 [ "$gated" -eq 1 ] || exit 0
 
 pointer="$proj/docs/plans/.active"
-[ -f "$pointer" ] || hook_deny "Blocked: '$rel' is a source path and no plan is active. Run /rb-implement <plan> on an approved plan first."
+[ -f "$pointer" ] || hook_deny "Blocked: '$rel' is a source path and no plan is active. Approve the design, run /rb-intake on it, then /rb-implement <plan>."
 
 plan=$(head -n 1 "$pointer" | tr -d '\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
 plan="${plan#./}"
@@ -119,21 +119,19 @@ case "$plan/" in
 esac
 [ -f "$proj/$plan" ] || hook_deny "Blocked: active plan '$plan' does not exist."
 
-plan_status=$(doc_status <"$proj/$plan")
-[ "$plan_status" = approved ] || hook_deny "Blocked: plan '$plan' has status '${plan_status:-missing}', not approved. A human approves the plan before any source change."
-
-arch=$(fm_get architecture <"$proj/$plan")
+arch=$(fm_get design <"$proj/$plan")
+[ -n "$arch" ] || arch=$(fm_get architecture <"$proj/$plan")
 arch="${arch#./}"
 case "$arch" in
   docs/architecture/*.md) ;;
-  *) hook_deny "Blocked: plan '$plan' needs front matter 'architecture: docs/architecture/NNN-name.md' (found '${arch:-nothing}')." ;;
+  *) hook_deny "Blocked: plan '$plan' needs front matter 'design: docs/architecture/NNN-name.md' (found '${arch:-nothing}')." ;;
 esac
 case "$arch/" in
-  */../*) hook_deny "Blocked: the plan's architecture reference must not contain '..'." ;;
+  */../*) hook_deny "Blocked: the plan's design reference must not contain '..'." ;;
 esac
-[ -f "$proj/$arch" ] || hook_deny "Blocked: architecture '$arch' referenced by '$plan' does not exist."
+[ -f "$proj/$arch" ] || hook_deny "Blocked: design '$arch' referenced by '$plan' does not exist."
 
 arch_status=$(doc_status <"$proj/$arch")
-[ "$arch_status" = approved ] || hook_deny "Blocked: architecture '$arch' has status '${arch_status:-missing}', not approved."
+[ "$arch_status" = approved ] || hook_deny "Blocked: design '$arch' has status '${arch_status:-missing}', not approved. The human approves the design before code is written."
 
 exit 0

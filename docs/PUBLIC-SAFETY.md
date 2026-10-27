@@ -40,7 +40,7 @@ Add to `~/.config/agent-config/denylist.txt`:
 This is the only way anything moves from a project into this repository, and it is
 manual.
 
-1. Start from an `accepted` entry in a project's `docs/knowledge/`.
+1. Start from a lesson that has proved itself in a project.
 2. Rewrite it from scratch as a general rule. Do not copy and edit; copying carries
    detail along.
 3. Remove every project, employer, system and person reference, and replace the
